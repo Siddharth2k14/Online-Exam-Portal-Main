@@ -1,0 +1,3 @@
+[submodule "client/vite-project"]
+	path = client/vite-project
+	url = https://github.com/Siddharth2k14/online-exam-portal-client.git
