@@ -99,6 +99,3 @@ This project is licensed under the MIT License.
 
 ---
 
-**Contributions and feedback
-=======
->>>>>>> d784a9d (Adding the component for Account Settings for the admin dashboard)
