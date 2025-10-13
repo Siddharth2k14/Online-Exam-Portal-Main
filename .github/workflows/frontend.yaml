@@ -20,19 +20,19 @@ jobs:
                 node-version: 22
             
             - name: Install Dependencies
-              working-directory: ./client
+              working-directory: ./client/vite-project
               run: npm ci
 
             - name: Lint code
-              working-directory: ./client
+              working-directory: ./client/vite-project
               run: npm run lint
 
             - name: Run tests
-              working-directory: ./client
+              working-directory: ./client/vite-project
               run: npm test -- --watchAll=false
 
             - name: Build project
-              working-directory: ./client
+              working-directory: ./client/vite-project
               run: npm run build
     
     deploy:
@@ -54,13 +54,13 @@ jobs:
             # Deploy to Staging (when pushing to 'testing' branch) 
             - name: Deploy to Staging
               if: github.ref == 'refs/heads/testing'
-              run: vercel --prod=false --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} --yes --cwd ./client
+              run: vercel --prod=false --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} --yes --cwd ./client/vite-project
 
             # Deploy to Production (when pushing or merging to 'main' branch)
             - name: Deploy to Production
               if: github.ref == 'refs/heads/main'
               run: |
                 echo "Deploying to Production..."
-                vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} --yes --cwd ./client
+                vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} --yes --cwd ./client/vite-project
                 echo "Also deploying to Staging..."
-                vercel --prod=false --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} --yes --cwd ./client
+                vercel --prod=false --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} --yes --cwd ./client/vite-project
