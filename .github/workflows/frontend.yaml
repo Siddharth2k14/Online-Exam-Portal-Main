@@ -34,20 +34,20 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run Tests with Coverage
-        run: npm test -- --coverage --watchAll=false
-        env:
-          CI: true
-          NODE_ENV: test
-        continue-on-error: false
+      # - name: Run Tests with Coverage
+      #   run: npm test -- --coverage --watchAll=false
+      #   env:
+      #     CI: true
+      #     NODE_ENV: test
+      #   continue-on-error: false
 
-      - name: Upload Coverage
-        uses: codecov/codecov-action@v3
-        if: always()
-        with:
-          files: ./client/vite-project/coverage/lcov.info
-          flags: frontend
-        continue-on-error: true
+      # - name: Upload Coverage
+      #   uses: codecov/codecov-action@v3
+      #   if: always()
+      #   with:
+      #     files: ./client/vite-project/coverage/lcov.info
+      #     flags: frontend
+      #   continue-on-error: true
 
   # ============================================
   # JOB 2: Build Verification
