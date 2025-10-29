@@ -30,8 +30,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '10'
-          cache: 'npm'
-          cache-dependency-path: 'client/vite-project/package-lock.json'
 
       - name: Install Dependencies
         run: npm ci
@@ -71,8 +69,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '10'
-          cache: 'npm'
-          cache-dependency-path: 'client/vite-project/package-lock.json'
 
       - name: Install Dependencies
         run: npm ci
@@ -118,8 +114,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '10'
-          cache: 'npm'
-          cache-dependency-path: 'client/vite-project/package-lock.json'
 
       - name: Install Dependencies
         run: npm ci
@@ -158,8 +152,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '10'
-          cache: 'npm'
-          cache-dependency-path: 'client/vite-project/package-lock.json'
 
       - name: Install Dependencies
         run: npm ci
@@ -230,8 +222,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '10'
-          cache: 'npm'
-          cache-dependency-path: 'client/vite-project/package-lock.json'
       
       - name: Install Dependencies
         run: npm ci
@@ -313,8 +303,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '10'
-          cache: 'npm'
-          cache-dependency-path: 'client/vite-project/package-lock.json'
 
       - name: Install Dependencies
         run: npm ci
