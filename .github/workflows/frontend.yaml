@@ -71,9 +71,7 @@ jobs:
           node-version: '22'
 
       - name: Install Dependencies
-        run: | 
-          cd client/vite-project
-          npm ci
+        run: npm ci
 
       - name: Build Application
         run: |
