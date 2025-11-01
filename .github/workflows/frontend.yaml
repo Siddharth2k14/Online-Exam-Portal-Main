@@ -59,7 +59,7 @@ jobs:
     
     defaults:
       run:
-        working-directory: ./client/vite-project
+        working-directory: client/vite-project
 
     steps:
       - name: Checkout Code
