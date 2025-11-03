@@ -65,16 +65,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: client/vite-project/package-lock.json
 
       - name: Install Dependencies
         working-directory: client/vite-project
         run: |
           echo "📦 Installing dependencies..."
-          npm ci
-          echo "✅ Dependencies installed successfully"
-          echo "Available npm scripts:"
+          npm ci --verbose
+          echo "✅ Dependencies installed"
+          echo "Available scripts:"
           npm run
 
       - name: Build Application
@@ -82,10 +80,9 @@ jobs:
         run: npm run build
         env:
           CI: true
-          NODE_ENV: production
+
 
       - name: Check Build Size
-        working-directory: client/vite-project
         run: |
           echo "📦 Build Size:"
           du -sh dist
