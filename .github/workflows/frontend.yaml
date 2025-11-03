@@ -68,7 +68,9 @@ jobs:
 
       - name: Install Dependencies
         working-directory: client/vite-project
-        run: npm ci
+        run: | 
+          npm cache clean --force
+          npm ci
 
       - name: Build Application
         working-directory: client/vite-project
