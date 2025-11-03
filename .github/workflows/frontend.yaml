@@ -65,18 +65,74 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v5
 
+        
+      - name: Debug - List All Files
+        run: |
+          echo "=== ROOT DIRECTORY ==="
+          pwd
+          ls -la
+          echo ""
+          echo "=== CLIENT DIRECTORY ==="
+          ls -la client/
+          echo ""
+          echo "=== VITE-PROJECT DIRECTORY ==="
+          ls -la client/vite-project/
+          echo ""
+          echo "=== FILES IN VITE-PROJECT ==="
+          find client/vite-project -maxdepth 2 -type f
+
+      - name: Debug - Check package.json Content
+        run: |
+          echo "=== PACKAGE.JSON CONTENT ==="
+          cat client/vite-project/package.json
+          echo ""
+          echo "=== CHECKING FOR BUILD SCRIPT ==="
+          grep -A 15 '"scripts"' client/vite-project/package.json || echo "Scripts section not found"
+        
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Install Dependencies
+      - name: Debug - Node and npm versions
         run: |
-          echo "Installing dependencies..."
+          echo "Node version: $(node --version)"
+          echo "npm version: $(npm --version)"
+          echo "Working directory: $(pwd)"
+
+      - name: Install Dependencies
+        working-directory: client/vite-project
+        run: |
+          echo "=== BEFORE npm ci ==="
+          pwd
+          ls -la
+          echo ""
+          echo "=== RUNNING npm ci ==="
           npm ci
-          echo "Dependencies installed"
-          echo "Available scripts:"
-          npm run
+          echo ""
+          echo "=== AFTER npm ci ==="
+          ls -la
+          echo ""
+          echo "=== node_modules EXISTS? ==="
+          test -d node_modules && echo "YES" || echo "NO"
+
+      - name: Debug - Check package.json AGAIN after install
+        working-directory: client/vite-project
+        run: |
+          echo "=== PACKAGE.JSON AFTER INSTALL ==="
+          cat package.json
+          echo ""
+          echo "=== SCRIPTS SECTION ==="
+          node -pe "JSON.parse(require('fs').readFileSync('package.json')).scripts"
+
+      - name: Debug - Try to list npm scripts
+        working-directory: client/vite-project
+        run: |
+          echo "=== LISTING NPM SCRIPTS ==="
+          npm run || echo "npm run failed"
+          echo ""
+          echo "=== TRYING TO READ SCRIPTS MANUALLY ==="
+          cat package.json | grep -A 20 "scripts"
 
       - name: Build Application
         run: npm run build
