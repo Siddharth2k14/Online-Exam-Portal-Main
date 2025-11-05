@@ -84,16 +84,16 @@ jobs:
         echo "=== VITE PROJECT DIRECTORY ==="
         ls -la client/vite-project || echo "No vite-project folder"
 
-    - name: Debug - Confirm package.json and scripts
-      working-directory: client/vite-project
-      run: |
-        echo "PWD: $(pwd)"
-        echo "FILES HERE:"
-        ls -la
-        echo "PACKAGE.JSON CONTENT:"
-        cat package.json || echo "package.json NOT FOUND!"
-        echo "NPM SCRIPTS:"
-        npm run || echo "npm run failed"
+    # - name: Debug - Confirm package.json and scripts
+    #   working-directory: client/vite-project
+    #   run: |
+    #     echo "PWD: $(pwd)"
+    #     echo "FILES HERE:"
+    #     ls -la
+    #     echo "PACKAGE.JSON CONTENT:"
+    #     cat package.json || echo "package.json NOT FOUND!"
+    #     echo "NPM SCRIPTS:"
+    #     npm run || echo "npm run failed"
 
     - name: Install Dependencies
       working-directory: client/vite-project
