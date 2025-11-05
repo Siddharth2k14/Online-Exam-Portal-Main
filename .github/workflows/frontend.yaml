@@ -61,6 +61,12 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v5
 
+    - name: Clone Client Repo (Actual Frontend Code)
+      run: |
+        rm -rf client    # Remove placeholder if exists
+        git clone https://github.com/Siddharth2k14/online-exam-portal-client.git client
+        ls -la client
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
@@ -79,7 +85,7 @@ jobs:
         ls -la client/vite-project || echo "No vite-project folder"
 
     - name: Debug - Confirm package.json and scripts
-      working-directory: client
+      working-directory: client/vite-project
       run: |
         echo "PWD: $(pwd)"
         echo "FILES HERE:"
@@ -90,17 +96,17 @@ jobs:
         npm run || echo "npm run failed"
 
     - name: Install Dependencies
-      working-directory: client
+      working-directory: client/vite-project
       run: npm ci
 
     - name: Build Application
-      working-directory: client
+      working-directory: client/vite-project
       run: npm run build
       env:
         CI: true
 
     - name: Check Build Size
-      working-directory: client
+      working-directory: client/vite-project
       run: |
         echo "📦 Build Size:"
         du -sh dist || echo "dist folder not found"
