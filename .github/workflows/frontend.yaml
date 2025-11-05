@@ -53,81 +53,57 @@ jobs:
   # JOB 2: Build Verification
   # ============================================
   build:
-    name: Build Verification
-    runs-on: ubuntu-latest
-    needs: test
+   name: Build Verification
+   runs-on: ubuntu-latest
+   needs: test
 
-    defaults:
-      run:
-        working-directory: client/vite-project
+   steps:
+    - name: Checkout Code
+      uses: actions/checkout@v5
 
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v5
-        with: 
-          path: '.'
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
 
-        
-      - name: Debug - List All Files
-        run: |
-          echo "=== CURRENT DIRECTORY ==="
-          pwd
-          ls -la
-          echo ""
-          echo "=== GO UP ONE LEVEL ==="
-          cd ..
-          pwd
-          ls -la
-        
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+    - name: Debug - List All Files
+      run: |
+        echo "=== CURRENT DIRECTORY ==="
+        pwd
+        ls -la
+        echo ""
+        echo "=== CLIENT DIRECTORY ==="
+        ls -la client || echo "No client folder"
+        echo ""
+        echo "=== VITE PROJECT DIRECTORY ==="
+        ls -la client/vite-project || echo "No vite-project folder"
 
-      - name: Debug - Node and npm versions
-        run: |
-          echo "Node version: $(node --version)"
-          echo "npm version: $(npm --version)"
-          echo "Working directory: $(pwd)"
+    - name: Install Dependencies
+      working-directory: client/vite-project
+      run: npm ci
 
-      - name: Install Dependencies
-        working-directory: client/vite-project
-        run: |
-          echo "=== BEFORE npm ci ==="
-          pwd
-          ls -la
-          echo ""
-          echo "=== RUNNING npm ci ==="
-          npm ci
-          echo ""
-          echo "=== AFTER npm ci ==="
-          ls -la
-          echo ""
-          echo "=== node_modules EXISTS? ==="
-          test -d node_modules && echo "YES" || echo "NO"
+    - name: Build Application
+      working-directory: client/vite-project
+      run: npm run build
+      env:
+        CI: true
 
-      - name: Build Application
-        run: npm run build
-        env:
-          CI: true
+    - name: Check Build Size
+      working-directory: client/vite-project
+      run: |
+        echo "📦 Build Size:"
+        du -sh dist || echo "dist folder not found"
+        size=$(du -sm dist | cut -f1 || echo 0)
+        echo "Total: ${size}MB"
+
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: vite-build-${{ github.sha }}
+        path: client/vite-project/dist/
+        retention-days: 7
 
 
-      - name: Check Build Size
-        run: |
-          echo "📦 Build Size:"
-          du -sh dist
-          size=$(du -sm dist | cut -f1)
-          echo "Total: ${size}MB"
-          if [ $size -gt 15 ]; then
-            echo "⚠️ Warning: Build size exceeds 15MB"
-          fi
-
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: vite-build-${{ github.sha }}
-          path: dist/
-          retention-days: 7
 
   # ============================================
   # JOB 3: Security Audit
