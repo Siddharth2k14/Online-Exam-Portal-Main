@@ -70,18 +70,15 @@ jobs:
         
       - name: Debug - List All Files
         run: |
-          echo "=== ROOT DIRECTORY ==="
+          echo "=== CURRENT DIRECTORY ==="
           pwd
           ls -la
           echo ""
-          echo "=== CLIENT DIRECTORY ==="
-          ls -la client/
-          echo ""
-          echo "=== VITE-PROJECT DIRECTORY ==="
-          ls -la client/vite-project/
-          echo ""
-          echo "=== FILES IN VITE-PROJECT ==="
-          find client/vite-project -maxdepth 2 -type f
+          echo "=== GO UP ONE LEVEL ==="
+          cd ..
+          pwd
+          ls -la
+
 
       - name: Debug - Check package.json Content
         run: |
