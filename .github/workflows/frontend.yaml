@@ -79,7 +79,7 @@ jobs:
         ls -la client/vite-project || echo "No vite-project folder"
 
     - name: Debug - Confirm package.json and scripts
-      working-directory: client/vite-project
+      working-directory: client
       run: |
         echo "PWD: $(pwd)"
         echo "FILES HERE:"
@@ -90,17 +90,17 @@ jobs:
         npm run || echo "npm run failed"
 
     - name: Install Dependencies
-      working-directory: client/vite-project
+      working-directory: client
       run: npm ci
 
     - name: Build Application
-      working-directory: client/vite-project
+      working-directory: client
       run: npm run build
       env:
         CI: true
 
     - name: Check Build Size
-      working-directory: client/vite-project
+      working-directory: client
       run: |
         echo "📦 Build Size:"
         du -sh dist || echo "dist folder not found"
