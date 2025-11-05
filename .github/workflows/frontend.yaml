@@ -118,24 +118,6 @@ jobs:
           echo "=== node_modules EXISTS? ==="
           test -d node_modules && echo "YES" || echo "NO"
 
-      - name: Debug - Check package.json AGAIN after install
-        working-directory: client/vite-project
-        run: |
-          echo "=== PACKAGE.JSON AFTER INSTALL ==="
-          cat package.json
-          echo ""
-          echo "=== SCRIPTS SECTION ==="
-          node -pe "JSON.parse(require('fs').readFileSync('package.json')).scripts"
-
-      - name: Debug - Try to list npm scripts
-        working-directory: client/vite-project
-        run: |
-          echo "=== LISTING NPM SCRIPTS ==="
-          npm run || echo "npm run failed"
-          echo ""
-          echo "=== TRYING TO READ SCRIPTS MANUALLY ==="
-          cat package.json | grep -A 20 "scripts"
-
       - name: Build Application
         run: npm run build
         env:
