@@ -78,15 +78,6 @@ jobs:
           cd ..
           pwd
           ls -la
-
-
-      - name: Debug - Check package.json Content
-        run: |
-          echo "=== PACKAGE.JSON CONTENT ==="
-          cat package.json
-          echo ""
-          echo "=== CHECKING FOR BUILD SCRIPT ==="
-          grep -A 15 '"scripts"' package.json
         
       - name: Setup Node.js
         uses: actions/setup-node@v4
