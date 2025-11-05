@@ -96,17 +96,17 @@ jobs:
     #     npm run || echo "npm run failed"
 
     - name: Install Dependencies
-      working-directory: client/vite-project
+      working-directory: client
       run: npm ci
 
     - name: Build Application
-      working-directory: client/vite-project
+      working-directory: client
       run: npm run build
       env:
         CI: true
 
     - name: Check Build Size
-      working-directory: client/vite-project
+      working-directory: client
       run: |
         echo "📦 Build Size:"
         du -sh dist || echo "dist folder not found"
