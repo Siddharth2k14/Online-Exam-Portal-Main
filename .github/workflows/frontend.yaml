@@ -1,6 +1,8 @@
 name: Client CI/CD
 
 on:
+  repository_dispatch:
+    types: [client_updated]
   push:
     branches: [main, testing, 'feature/**']
   pull_request:
@@ -9,6 +11,7 @@ on:
 env:
   NODE_VERSION: '22'
   WORKING_DIR: 'client/vite-project'
+  CLIENT_BRANCH: ${{ github.event.client_branch }}
 
 jobs:
   # ============================================
