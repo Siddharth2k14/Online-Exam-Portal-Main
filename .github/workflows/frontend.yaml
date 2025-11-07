@@ -1,0 +1,47 @@
+name: Full Stack CI Orchestrator
+
+on:
+  workflow_dispatch: # Optionally: manual start
+  repository_dispatch:
+    types: [client_updated, server_updated]
+
+jobs:
+  check-client:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check latest Client CI status
+        run: |
+          STATUS=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.MAIN_REPO_TOKEN }}" \
+            https://api.github.com/repos/Siddharth2k14/online-exam-portal-client/actions/runs \
+            | jq -r '.workflow_runs[0].conclusion')
+
+          echo "Client Status: $STATUS"
+          if [ "$STATUS" != "success" ]; then
+            echo "❌ Client CI failed!"
+            exit 1
+          fi
+
+  check-server:
+    needs: check-client
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check latest Server CI status
+        run: |
+          STATUS=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.MAIN_REPO_TOKEN }}" \
+            https://api.github.com/repos/Siddharth2k14/online-exam-portal-server/actions/runs \
+            | jq -r '.workflow_runs[0].conclusion')
+
+          echo "Server Status: $STATUS"
+          if [ "$STATUS" != "success" ]; then
+            echo "❌ Server CI failed!"
+            exit 1
+          fi
+
+  success-notification:
+    needs: [check-client, check-server]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify success
+        run: echo "✅ Both Client & Server CI/CD passed! Ready to deploy or merge."
