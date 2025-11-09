@@ -11,16 +11,25 @@ jobs:
     steps:
       - name: Check latest Client CI status
         run: |
-          STATUS=$(curl -s \
+            echo "🔍 Fetching latest workflow runs for client repo..."
+            RESPONSE=$(curl -s \
             -H "Authorization: Bearer ${{ secrets.MAIN_REPO_TOKEN }}" \
-            https://api.github.com/repos/Siddharth2k14/online-exam-portal-client/actions/runs \
-            | jq -r '.workflow_runs[0].conclusion')
+            https://api.github.com/repos/Siddharth2k14/online-exam-portal-client/actions/runs)
 
-          echo "Client Status: $STATUS"
-          if [ "$STATUS" != "success" ]; then
-            echo "❌ Client CI failed!"
+            echo "$RESPONSE" | head -n 20  # Show first lines of response for debugging
+
+            STATUS=$(echo "$RESPONSE" | jq -r '.workflow_runs[0].conclusion')
+            EVENT=$(echo "$RESPONSE" | jq -r '.workflow_runs[0].event')
+            STATUS_TEXT=${STATUS:-"null (no completed workflow found)"}
+
+            echo "✅ Latest client workflow event: $EVENT"
+            echo "✅ Latest client workflow status: $STATUS_TEXT"
+
+            if [ "$STATUS" != "success" ]; then
+            echo "❌ Client CI is not successful (status = $STATUS_TEXT)"
             exit 1
-          fi
+            fi
+
 
   check-server:
     needs: check-client
