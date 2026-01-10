@@ -1,0 +1,3 @@
+https://online-exam-portal-client-testing.vercel.app/exam/science/review -> After submission of the exam
+
+https://online-exam-portal-client-testing.vercel.app/student/dashboard#/viewExam -> of the ViewExam functionality in Student Dashboard
