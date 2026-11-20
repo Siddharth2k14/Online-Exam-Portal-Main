@@ -1,0 +1,167 @@
+---
+title: "Deployment"
+description: "How ExamMaster deploys the client to Vercel, the server to Render, and how the orchestrator workflow coordinates both."
+sidebarTitle: "Deployment"
+---
+
+ExamMaster uses a multi-platform deployment strategy: the React client ships to Vercel, the Express server ships to Render, and a top-level orchestrator workflow in the main repository verifies that both submodules pass CI before any release is considered complete.
+
+## Client deployment (Vercel)
+
+The client is deployed through GitHub Actions using the `amondnet/vercel-action`. It supports three environments driven by branch names.
+
+### Environments
+
+| Environment | Branch | URL pattern |
+| --- | --- | --- |
+| Production | `main` | `https://online-exam-portal-client.vercel.app` |
+| Staging | `testing` | `https://online-exam-portal-client-testing.vercel.app` |
+| Preview | `feature/**` | Unique Vercel preview URL per branch |
+
+### Deployment flow
+
+<Steps>
+  <Step title="Build">
+    The workflow installs Bun, runs `bun install`, then builds with `bun run builds`. The build receives environment-specific variables:
+
+    - **Production**: `VITE_API_URL` from `secrets.PROD_API_URL`, `VITE_APP_ENV=production`
+    - **Staging / Preview**: `VITE_API_URL` from `secrets.STAGING_API_URL`, `VITE_APP_ENV=staging` or `preview`
+  </Step>
+  <Step title="Deploy">
+    Uses `amondnet/vercel-action@v25` with the following secrets:
+
+    - `VERCEL_TOKEN`
+    - `VERCEL_ORG_ID`
+    - `VERCEL_PROJECT_ID` Production deployments add `vercel-args: '--prod'`.
+  </Step>
+  <Step title="Health check">
+    After deployment, the workflow curls the environment URL and expects HTTP 200. On production it also creates a Git tag in the format `prod-YYYYMMDD-HHMMSS`.
+  </Step>
+</Steps>
+
+### Client routing on Vercel
+
+The client repository includes a `vercel.json` rewrite rule so SPA routes work after refresh:
+
+```json
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/" }
+  ]
+}
+```
+
+## Server deployment (Render)
+
+The Express API is hosted on Render and deployed via Render deploy hooks triggered from GitHub Actions.
+
+### Staging
+
+Triggered on pushes to the `testing` branch:
+
+```bash
+curl -X POST https://api.render.com/deploy/${{ secrets.RENDER_STAGING_SERVICE_ID }} \
+  -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}"
+```
+
+### Production
+
+Triggered on pushes to the `main` branch after the security audit job passes:
+
+```bash
+curl -X POST https://api.render.com/deploy/${{ secrets.RENDER_PROD_SERVICE_ID }} \
+  -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}"
+```
+
+### Serverless configuration (Vercel)
+
+The server repository also contains a `vercel.json` that configures a Vercel serverless build:
+
+```json
+{
+  "version": 2,
+  "builds": [
+    { "src": "api/index.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "api/index.js" }
+  ]
+}
+```
+
+This file is present but the active CI pipeline targets Render, not Vercel. It can be used for alternate hosting or fallback deployments.
+
+## Orchestrator workflow
+
+The main repository (which holds the client and server as Git submodules) contains a workflow named `frontend.yaml` that acts as a full-stack CI gate.
+
+### Trigger
+
+- `workflow_dispatch` -- manual run
+- `repository_dispatch` with types `client_updated` or `server_updated` -- intended for cross-repo webhooks
+
+### Jobs
+
+<Steps>
+  <Step title="Check client CI">
+    Queries the GitHub API for the latest workflow run in the client repository and fails if the conclusion is not `success`.
+  </Step>
+  <Step title="Check server CI">
+    Runs after the client check and queries the latest workflow run in the server repository, failing on anything other than `success`.
+  </Step>
+  <Step title="Notify success">
+    Prints a confirmation that both client and server CI passed.
+  </Step>
+</Steps>
+
+This workflow is useful for release gating: you can require it to pass before allowing merges or production deploys.
+
+## Required secrets
+
+The following secrets must be configured in each repository for deployments to work. Only the names are listed; store the actual values in your GitHub repository or Render dashboard settings.
+
+### Client repository secrets
+
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+- `PROD_API_URL`
+- `STAGING_API_URL`
+
+### Server repository secrets
+
+- `RENDER_API_KEY`
+- `RENDER_STAGING_SERVICE_ID`
+- `RENDER_PROD_SERVICE_ID`
+
+### Main repository secrets
+
+- `MAIN_REPO_TOKEN` -- a GitHub personal access token with `repo` scope so the orchestrator can read workflow run statuses across the submodule repositories.
+
+<Warning>
+  Do not commit secret values to the repository. The CI files reference them through `${{ secrets.NAME }}` and GitHub redacts them from logs automatically.
+</Warning>
+
+## Docker Compose (local parity)
+
+For local development, the main repository includes a `docker-compose.yml` that starts both services together:
+
+```yaml
+version: '3.8'
+services:
+  client:
+    build: ./client/vite-project
+    ports:
+      - "5173:5173"
+    depends_on:
+      - server
+
+  server:
+    build: ./server
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./server/.env
+```
+
+This is not used in production, but it helps you verify the full stack locally before pushing to a branch that will trigger CI.

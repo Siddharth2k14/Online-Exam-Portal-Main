@@ -1,0 +1,123 @@
+---
+title: "Testing"
+description: "How ExamMaster runs tests, what the CI checks, and where test coverage currently stands."
+sidebarTitle: "Testing"
+---
+
+ExamMaster uses [Vitest](https://vitest.dev) for the client and has CI pipelines for both the client and server. At the moment, the test suites are configured but the actual test steps are commented out in CI because no test files exist yet.
+
+## Client testing setup
+
+The client is a Vite + React project. Vitest is configured inside `vite.config.js` so tests run through the same toolchain as the dev server.
+
+### Vitest configuration
+
+```js
+// vite.config.js
+export default defineConfig({
+  plugins: [react(), /* ... */],
+  test: {
+    globals: true,
+    environment: "jsdom",
+    setupFiles: "./src/setupTests.js"
+  },
+});
+```
+
+Key settings:
+
+- `globals: true` -- allows `describe`, `it`, and `expect` without importing them in every test file.
+- `environment: "jsdom"` -- simulates a browser DOM for React component tests.
+- `setupFiles: "./src/setupTests.js"` -- points to a setup file that should run before each test suite.
+
+### Test dependencies
+
+The client already installs the libraries you need for React testing:
+
+```json
+"devDependencies": {
+  "@testing-library/jest-dom": "^6.6.3",
+  "@testing-library/react": "^16.3.0",
+  "vitest": "^3.1.4"
+}
+```
+
+### Test script
+
+```json
+// package.json
+"scripts": {
+  "test": "vitest"
+}
+```
+
+Running `bun test` (or `npm test`) starts Vitest in watch mode locally. In CI the same command would be used with `--coverage` if enabled.
+
+### Current state of test files
+
+- **No test files exist** in the client repository. A search for `*.test.*` or `*.spec.*` under `src/` returns nothing.
+- **`src/setupTests.js` does not exist**, even though `vite.config.js` references it. You will need to create this file before writing component tests, otherwise Vitest will fail with a missing-setup error.
+
+## Server testing setup
+
+The server is an Express + MongoDB API. Its `package.json` does not define a test script and no test files exist in the repository. The CI workflow references `npm test` in a commented block, but there is nothing to run yet.
+
+## CI overview
+
+### Client CI (`Client.yaml`)
+
+The client workflow runs on every push to `main`, `testing`, or `feature/**`, and on pull requests to `main` and `testing`.
+
+<Steps>
+  <Step title="Install">
+    Checks out code, installs Bun, and runs `bun install`.
+  </Step>
+  <Step title="Test (commented out)">
+    The test step is commented out in the workflow file. The commented block shows the intended command:
+
+    ```bash
+    bun test --coverage
+    ```
+
+    This step is skipped until tests are added and the block is uncommented.
+  </Step>
+  <Step title="Build">
+    Runs `bun run builds` to produce the Vite production bundle. Build artifacts are uploaded and retained for 7 days.
+  </Step>
+  <Step title="Security audit">
+    Runs `bun audit` and, for pull requests only, a GitHub dependency review.
+  </Step>
+</Steps>
+
+### Server CI (`Server.yaml`)
+
+The server workflow uses Node.js 20 and runs the same branch triggers as the client.
+
+<Steps>
+  <Step title="Install">
+    Checks out code and runs `npm ci`.
+  </Step>
+  <Step title="Lint (commented out)">
+    A lint step is present but commented out because no lint script is defined.
+  </Step>
+  <Step title="Test (commented out)">
+    A test step is present but commented out because no test suite exists yet.
+  </Step>
+  <Step title="Security audit">
+    Runs `npm audit --audit-level=moderate`.
+  </Step>
+</Steps>
+
+## Adding your first tests
+
+If you want to start writing tests before the CI steps are enabled, follow this order:
+
+1. Create `src/setupTests.js` in the client.
+2. Add a simple component test next to the component file (for example, `LoginPage.test.jsx`).
+3. Run `bun test` locally to confirm Vitest loads.
+4. Uncomment the test step in `.github/workflows/Client.yaml`.
+5. Repeat the same process for the server once a test framework (such as Vitest or Jest) is added there.
+
+<Note>
+  Because both the client and server currently skip their test jobs in CI, the build and security audits still run on every commit. This gives you feedback on compilation and dependency health even while tests are not yet in place.
+</Note>

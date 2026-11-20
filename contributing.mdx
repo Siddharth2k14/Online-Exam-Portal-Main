@@ -1,0 +1,94 @@
+---
+title: "Contributing"
+description: "How to contribute to ExamMaster, including branch strategy, code style, and documentation."
+sidebarTitle: "Contributing"
+---
+
+ExamMaster uses a multi-repo workflow with Git submodules. Changes flow from the client and server repositories into the main repo, then through CI to staging and production.
+
+## Branch Model
+
+The project follows a three-tier branch strategy driven by GitHub Actions workflows in both the client and server repositories.
+
+<AccordionGroup>
+  <Accordion title="main: production">
+    The `main` branch is the production source of truth. Pushes to `main` trigger production deployments: the client deploys to Vercel and the server deploys to Render.
+  </Accordion>
+
+  <Accordion title="testing: staging">
+    The `testing` branch is the staging environment. Pushes to `testing` deploy to staging URLs so features can be validated before reaching production.
+  </Accordion>
+
+  <Accordion title="feature/**: previews">
+    Any branch prefixed with `feature/` creates a preview deployment on push. This lets you share work-in-progress URLs for review without affecting staging or production.
+  </Accordion>
+</AccordionGroup>
+
+Pull requests target `testing` first. After validation, merge `testing` into `main` to release.
+
+## Working Across Submodules
+
+The main repository at `Siddharth2k14/Online-Exam-Portal-Main` includes two submodules:
+
+- `client/vite-project` pointing to `online-exam-portal-client`
+- `server` pointing to `online-exam-portal-server`
+
+<Steps>
+  <Step title="Commit in the submodule">
+    Make changes inside `client/vite-project` or `server`, then commit and push to the submodule's own repository.
+  </Step>
+  <Step title="Update the main repo pointer">
+    In the main repository, stage the submodule directory so the commit hash is updated.
+  </Step>
+  <Step title="Push the main repo">
+    Push the main repository so the orchestrator workflow can track the latest submodule CI statuses.
+  </Step>
+</Steps>
+
+## Code Style
+
+Both the client and server use ESLint and Prettier. Run the checks before opening a pull request.
+
+### Client Scripts
+
+The client `package.json` includes these scripts:
+
+- `npm run lint`: lint JavaScript and JSX files
+- `npm run lint:fix`: lint and auto-fix issues
+- `npm run format`: format all files with Prettier
+- `npm run prettier:check`: check formatting without writing
+- `npm run prepare`: initialize Husky hooks
+
+### Server Scripts
+
+The server lists `eslint` and `prettier` as devDependencies. You can run them directly:
+
+```bash
+npx eslint .
+npx prettier --check .
+```
+
+## Pull Request Flow
+
+<Steps>
+  <Step title="Create a feature branch">
+    Branch from `testing` with a `feature/` prefix, for example `feature/exam-timer`.
+  </Step>
+  <Step title="Open a PR to testing">
+    Target the `testing` branch. CI runs dependency installation, build verification, and security audits.
+  </Step>
+  <Step title="Validate on staging">
+    Once merged, the staging deployment is available for manual checks.
+  </Step>
+  <Step title="Promote to main">
+    Open a PR from `testing` to `main`. Production deployment triggers only after the required CI jobs pass.
+  </Step>
+</Steps>
+
+## Where Docs Live
+
+This documentation site is a Mintlify project. The source files are `.mdx` files at the root of the main repository, and `docs.json` defines the navigation. The site deploys from the `main` branch of the main repository.
+
+<Note>
+  Keep docs changes in the same PR as related code changes when possible, so reviews stay in context.
+</Note>

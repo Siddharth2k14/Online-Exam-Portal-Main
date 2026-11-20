@@ -1,0 +1,83 @@
+---
+title: "Troubleshooting"
+description: "Common issues when running, deploying, or developing the ExamMaster MERN stack application."
+sidebarTitle: "Troubleshooting"
+---
+
+This page lists the most common issues you may hit when working with ExamMaster, along with their root causes and fixes.
+
+<AccordionGroup>
+  <Accordion title="MONGO_URI is not defined" icon="database">
+    The server throws this error on startup because `DB/Auth.DB.js` checks `process.env.MONGO_URI` before connecting:
+
+    ```js
+    if (!process.env.MONGO_URI) {
+        throw new Error('MONGO_URI is not defined in environment variables');
+    }
+    ```
+
+    **Fix:** Create a `.env` file in the server directory and add `MONGO_URI=<your-mongodb-connection-string>`. See [/setup/environment-variables](/setup/environment-variables) for the full list of required variables.
+  </Accordion>
+
+  <Accordion title="Render free-tier cold starts" icon="cloud">
+    The production API is hosted on Render's free tier (`https://online-exam-portal-server.onrender.com`). Free-tier instances spin down after inactivity, so the first request after a period of idle time can take 30-60 seconds to respond.
+
+    **Fix:** This is expected behavior on the free tier. For faster responses, upgrade to a paid Render plan or use a keep-alive ping service.
+  </Accordion>
+
+  <Accordion title="Client calls hardcoded production URL" icon="code">
+    Several client components call the production Render URL directly instead of using a configurable base URL. For example:
+
+    ```jsx
+    const response = await axios.get(
+      "https://online-exam-portal-server.onrender.com/api/auth/admin/all"
+    );
+    ```
+
+    **Fix:** Replace the hardcoded URL with an environment variable such as `import.meta.env.VITE_API_BASE_URL`, and set that variable to `http://localhost:3000` for local development. See [/setup/environment-variables](/setup/environment-variables).
+  </Accordion>
+
+  <Accordion title="SPA deep-link 404s on Vercel" icon="link">
+    Because the client is a single-page application (SPA), refreshing a route such as `/exams/123` directly can return a 404 unless the host rewrites all paths to `index.html`.
+
+    **Fix:** The repo already includes a `vercel.json` rewrite rule:
+
+    ```json
+    {
+      "rewrites": [
+        { "source": "/(.*)", "destination": "/" }
+      ]
+    }
+    ```
+
+    If you deploy elsewhere, add an equivalent catch-all rewrite to serve `index.html` for unknown paths.
+  </Accordion>
+
+  <Accordion title="Missing JWT_SECRET breaks login" icon="key">
+    The auth middleware (`Middleware/auth.middleware.js`) verifies tokens with `jwt.verify(token, process.env.JWT_SECRET)`. If `JWT_SECRET` is missing, all authenticated requests fail.
+
+    **Fix:** Add `JWT_SECRET=<a-strong-random-string>` to the server `.env` file. Restart the server after changing environment variables.
+  </Accordion>
+
+  <Accordion title="Docker Compose client build fails" icon="docker">
+    The root `docker-compose.yml` tries to build the client from `./client/vite-project`, but the client submodule does not contain a `Dockerfile`.
+
+    **Fix:** Either add a `Dockerfile` to the client repository or update `docker-compose.yml` to use a pre-built image or a bind-mount for local development. See [/setup/docker](/setup/docker) for a working setup.
+  </Accordion>
+
+  <Accordion title="Empty client/ or server/ folders after clone" icon="folder-open">
+    The main repository uses Git submodules for the client and server. If you clone with `git clone` only, the submodule directories remain empty.
+
+    **Fix:** Run the submodule initialization command:
+
+    ```bash
+    git submodule update --init --recursive
+    ```
+
+    Then verify that both `client/vite-project` and `server` contain files before running Docker Compose or installing dependencies.
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+  If an issue persists after applying the fixes above, check the server logs for the exact error message and review the environment variable setup in [/setup/environment-variables](/setup/environment-variables).
+</Note>
