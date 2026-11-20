@@ -1,0 +1,190 @@
+---
+title: "Frontend Service"
+description: "React 19 Vite application structure, routing, state management, theming, and desktop wrapper."
+---
+
+The frontend is a React 19 application bundled with Vite. It uses Material UI (MUI) for components, Redux Toolkit for state, React Router for routing, and Sentry for error tracking. A lightweight Electron wrapper (`main.cjs`) turns the web build into a desktop app.
+
+## Tech stack
+
+| Layer | Library / Tool |
+| --- | --- |
+| Framework | React 19 |
+| Bundler | Vite |
+| UI | MUI 7, Emotion, styled-components |
+| Routing | React Router 7 |
+| State | Redux Toolkit + React Redux |
+| Charts | Recharts, MUI X Charts |
+| Error tracking | Sentry React + Sentry Vite plugin |
+| Analytics | Vercel Speed Insights + Analytics |
+| Desktop | Electron (wrapper) |
+| Package manager | Bun (CI) |
+
+## Entry point (`main.jsx`)
+
+The root file mounts the app inside `BrowserRouter` and `Provider` (Redux), then wraps everything in a Sentry `ErrorBoundary`:
+
+```jsx
+<BrowserRouter>
+  <Provider store={store}>
+    <Sentry.ErrorBoundary fallback={<p>Something went wrong!</p>}>
+      <App />
+      <SpeedInsights />
+      <Analytics />
+    </Sentry.ErrorBoundary>
+  </Provider>
+</BrowserRouter>
+```
+
+Sentry is initialized before render with `browserTracingIntegration` and `tracesSampleRate: 1.0`.
+
+## Routes (`App.jsx`)
+
+Routes are declared with `react-router-dom` and grouped by audience. Most page components are lazy-loaded to keep the initial bundle small.
+
+### Public routes
+
+| Path | Component |
+| --- | --- |
+| `/` | `Home` |
+| `/about` | `About` |
+| `/contact` | `Contact` |
+| `/login` | `Login` |
+| `/signup` | `Signup` |
+| `/forgetPassword` | `ForgetPassword` |
+
+### Admin routes (`roles={['admin']}`)
+
+| Path | Component |
+| --- | --- |
+| `/admin/dashboard` | `AdminDashboard` |
+| `/exam-creation` | `ExamCreation` |
+| `/manage-exams` | `ManageExam` |
+| `/exam-creation/objective` | `ObjectiveExamCreation` |
+| `/exam-creation/subjective` | `SubjectiveExamCreation` |
+| `/view-exam/:examTitle` | `ViewExam` |
+| `/student-list` | `StudentList` |
+| `/assign-exam` | `AssignExam` |
+
+### Student routes (`roles={['student']}`)
+
+| Path | Component |
+| --- | --- |
+| `/student/dashboard` | `StudentDashboard` |
+| `/exams` | `ExamsPage` |
+| `/results` | `Result` |
+| `/start-exam/:examTitle` | `StartExam` |
+| `/exam/:examTitle/review` | `ViewExamReview` |
+
+### Shared routes (`roles={['admin', 'student']}`)
+
+| Path | Component |
+| --- | --- |
+| `/change-password` | `ChangePassword` |
+| `/account-settings` | `AccountSettings` |
+
+Legacy paths such as `/signup/:role`, `/login/:role`, and `/home` redirect to their modern equivalents. A catch-all `*` route redirects to `/`.
+
+## Key components
+
+| Component | Location | Purpose |
+| --- | --- | --- |
+| `NavBar` | `components/NavBar/` | Top navigation with mobile hamburger menu |
+| `SideBar` / `SideNavBar` | `components/SideBar/`, `components/SideNavBar/` | Dashboard side navigation |
+| `PrivateRoute` | `components/Private Route/` | Role-based route guard |
+| `Loading` | `helper components/` | Suspense fallback spinner |
+| `Timer` | `components/Timer/` | Exam countdown timer |
+| `Download` | `components/Download Btn/` | Desktop download CTA |
+| `HideSideBar` | `components/Hide Side Bar/` | Responsive sidebar toggle |
+
+## Redux store
+
+The store is configured in `redux/store.js` with four slices:
+
+```js
+const store = configureStore({
+  reducer: {
+    auth: authReducer,
+    questions: questionReducer,
+    exams: examReducer,
+    subjectiveExam: subjectiveExamReducer,
+  },
+});
+```
+
+### `authSlice`
+
+- Thunks: `login`, `signup`
+- State: `user`, `token`, `role`, `loading`, `error`
+- Actions: `logout`, `clearError`
+- Side effects: writes `token`, `role`, and `user` to `localStorage` on fulfilled login/signup; clears storage on `logout`
+- Base URL: `import.meta.env.VITE_SERVER_URL + "/api/auth"`
+
+### `questionSlice`
+
+Manages a local list of questions while an exam is being created.
+
+- `addQuestion`, `removeQuestion`, `updateQuestion`, `resetQuestions`
+
+### `examSlice`
+
+Holds draft exams before they are sent to the server.
+
+- `addExam`, `deleteExam`, `addQuestionToExam`
+
+### `subjectiveExamSlice`
+
+Holds subjective questions during creation.
+
+- `addSubjectiveQuestion`, `setSubjectiveQuestions`, `clearSubjectiveQuestions`
+
+## Theme context
+
+`ThemeContext.jsx` provides a light/dark toggle via React Context.
+
+- `themeMode` starts as `'light'`.
+- `toggleTheme` switches between `'light'` and `'dark'` and updates `document.body.style.background` and `document.body.style.color` directly.
+- `useTheme` throws if called outside the provider.
+
+The root `App.jsx` wraps the router in `<ThemeProvider>` and renders `<CssBaseline />` from MUI.
+
+## Electron wrapper (`main.cjs`)
+
+A minimal Electron main process that loads the production web URL instead of a local `index.html`.
+
+```js
+const { app, BrowserWindow } = require("electron");
+const path = require('path');
+
+function createWindow() {
+  const win = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    autoHideMenuBar: true,
+    icons: path.join(__dirname, "assets/ExamPortalLogo.png"),
+  });
+  win.loadURL("https://online-exam-portal-client.vercel.app/");
+}
+
+app.whenReady().then(createWindow);
+```
+
+The `package.json` `main` field points to `main.cjs`, and the `dist` script uses `electron-builder` to produce Windows (`nsis`), macOS (`dmg`), and Linux (`AppImage`, `deb`) artifacts.
+
+## Sentry integration
+
+Sentry is configured in `main.jsx` and also imported in `NavBar.jsx` for manual instrumentation if needed. The Vite config includes `@sentry/vite-plugin` with:
+
+- `org: "student-oef"`
+- `project: "javascript-react"`
+- `build.sourcemap: true` (required for symbolication)
+
+## Vite configuration highlights
+
+- `rollup-plugin-visualizer` emits `bundle-report.json` with gzip and brotli sizes.
+- Vitest is configured for unit testing (`globals: true`, `environment: "jsdom"`, \`setupFiles: "./src/setupTests.js").
+- `server.allowedHosts` includes an ngrok host for local tunneling.
+
+## CI / build notes
+
+The client CI uses Bun for installs and builds. The build command is `bun run builds`, which maps to `vite build`. Tests are commented out in the workflow (`bun test --coverage` is disabled), and linting is available via `eslint` but not enforced in CI.

@@ -1,0 +1,183 @@
+---
+title: "Backend Service"
+description: "Express 5 bootstrap, route mounting, and full endpoint reference for the ExamMaster API."
+---
+
+The backend is an Express 5 application that listens on port `3000`. It connects to MongoDB via two Mongoose connection helpers, mounts four route prefixes under `/api`, and exposes a health-check root route.
+
+## Bootstrap (`api/index.js`)
+
+```js
+const app = express();
+const PORT = 3000;
+
+// Database connections
+await connectQuesDB();
+await connectAuthDB();
+
+app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Routes
+app.use('/api/questions', questionRoute);
+app.use('/api/auth', AuthRoute);
+app.use('/api/submissions', submissionRoute);
+app.use('/api/exams', assignExamRoute);
+```
+
+<Note>
+  The `cors()` and body-parsing middleware are registered **after** `app.listen()` in the current file. In practice, because `startServer()` is `async`, the middleware is still attached before the first request arrives, but the ordering is unconventional.
+</Note>
+
+## Environment variables
+
+| Variable | Used by |
+| --- | --- |
+| `MONGO_URI` | `connectQuesDB`, `connectAuthDB` |
+| `JWT_SECRET` | `auth.controller.js` (signup, login, middleware) |
+
+## Endpoint reference
+
+### Auth (`/api/auth`)
+
+| Method | Path | Middleware | Purpose |
+| --- | --- | --- | --- |
+| `POST` | `/api/auth/signup` | -- | Register a new user; role is derived from email domain |
+| `POST` | `/api/auth/login` | -- | Authenticate and return a JWT |
+| `POST` | `/api/auth/change-password` | `authMiddleware` | Change password for the authenticated user |
+| `GET` | `/api/auth/:role/all` | -- | List all users filtered by role (`student` or `admin`) |
+| `GET` | `/api/auth/all` | -- | List every user in the database |
+
+#### Signup request body
+
+```json
+{
+  "name": "Alice",
+  "email": "alice@exam-portal.com",
+  "password": "secret123",
+  "confirmPassword": "secret123",
+  "phoneNumber": "+1234567890"
+}
+```
+
+- Emails ending in `@exam-portal.com` become `admin`; all others become `student`.
+- Password must be at least 6 characters and contain at least one digit.
+- Response includes `user`, `token`, and `role`.
+
+#### Login request body
+
+```json
+{
+  "email": "alice@exam-portal.com",
+  "password": "secret123"
+}
+```
+
+- The server recomputes the expected role from the email domain and rejects the request if the stored role does not match.
+
+### Questions (`/api/questions`)
+
+| Method | Path | Middleware | Purpose |
+| --- | --- | --- | --- |
+| `POST` | `/api/questions/objective` | -- | Create an objective (MCQ) question |
+| `POST` | `/api/questions/subjective` | -- | Create a subjective question |
+| `GET` | `/api/questions/all` | -- | List all exams with their grouped questions |
+| `GET` | `/api/questions/exam/:examTitle` | -- | Get a single exam with objective or subjective questions |
+| `GET` | `/api/questions/objective/:examTitle` | -- | Get only objective questions for an exam |
+| `GET` | `/api/questions/subjective/:examTitle` | -- | Get only subjective questions for an exam |
+| `DELETE` | `/api/questions/objective/:exam_title` | -- | Delete all objective questions for an exam |
+| `DELETE` | `/api/questions/subjective/:exam_title` | -- | Delete all subjective questions for an exam |
+
+#### Create objective question
+
+```json
+{
+  "examTitle": "Math 101",
+  "question": "What is 2 + 2?",
+  "options": ["3", "4", "5", "6"],
+  "correct": 1
+}
+```
+
+The server assigns `id: Date.now()` and generates a new `exam_id` ObjectId automatically.
+
+#### Create subjective question
+
+```json
+{
+  "exam_title": "Math 101",
+  "question": "Explain the Pythagorean theorem.",
+  "answer": "In a right triangle, a² + b² = c².",
+  "marks": 10,
+  "timer": 300
+}
+```
+
+### Exams / Assignments (`/api/exams`)
+
+| Method | Path | Middleware | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/api/exams/exam/:examTitle/objective-questions` | `authMiddleware`, `checkExamAccess` | Fetch objective questions for an assigned exam |
+| `GET` | `/api/exams/exam/:examTitle/subjective-questions` | `authMiddleware`, `checkExamAccess` | Fetch subjective questions for an assigned exam |
+| `POST` | `/api/exams/exam/:examTitle/start` | `authMiddleware`, `checkExamAccess` | Mark the exam as started and increment `attemptCount` |
+| `GET` | `/api/exams/assigned` | `authMiddleware` | List all exams assigned to the authenticated student |
+| `POST` | `/api/exams/assign` | -- | Assign an exam to a student |
+
+#### Assign exam request body
+
+```json
+{
+  "exam_name": "Math 101",
+  "studentId": "64f8...",
+  "exam_type": "objective"
+}
+```
+
+#### Start exam behavior
+
+- If `assignment.attemptCount >= 1`, returns `403 Attempt limit exceeded`.
+- Otherwise sets `status` to `"started"` and increments `attemptCount`.
+
+### Submissions (`/api/submissions`)
+
+| Method | Path | Middleware | Purpose |
+| --- | --- | --- | --- |
+| `POST` | `/api/submissions/submit` | -- | Submit an exam and compute a score |
+| `GET` | `/api/submissions/result/:submissionId` | -- | Retrieve a single submission result |
+| `GET` | `/api/submissions/all` | -- | List all submissions (answers omitted) |
+
+#### Submit exam request body
+
+```json
+{
+  "examTitle": "Math 101",
+  "examType": "Objective",
+  "answers": [1, 2, 0, 3]
+}
+```
+
+- For **objective** exams, each answer is compared against `correct_option`.
+- For **subjective** exams, the controller runs a lightweight word-overlap scorer (`areAnswersSimilar`) that requires a 70% keyword match. It also tracks total marks earned against the per-question `marks` field.
+- The submission is saved to the `Submission` collection and the computed `score`, `totalQuestions`, and `percentage` are returned.
+
+## Middleware used on routes
+
+| Middleware | Applied to | Behavior |
+| --- | --- | --- |
+| `authMiddleware` | `/api/auth/change-password`, `/api/exams/*` (except `/assign`) | Validates Bearer JWT, attaches `req.user` and `req.userId` |
+| `checkExamAccess` | `/api/exams/exam/:examTitle/*` | Queries `ExamAssignment` by `studentId` + `exam_name`; returns `403` if no assignment exists |
+
+## Database connections
+
+- `connectQuesDB` -- used for questions and exams data
+- `connectAuthDB` -- used for user authentication data
+
+Both helpers read `process.env.MONGO_URI` and share a single `isConnected` flag to avoid duplicate connections.
+
+## Error handling
+
+Controllers return `500` for unexpected errors and log details to the console. The auth middleware distinguishes `JsonWebTokenError` and `TokenExpiredError` with specific `401` messages.

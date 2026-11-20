@@ -1,0 +1,60 @@
+---
+title: "Environment Variables"
+description: "Required and optional environment variables for the ExamMaster server and client, plus CI secrets used by GitHub Actions."
+---
+
+ExamMaster reads configuration from environment files at runtime and from repository secrets during CI/CD. This page lists every variable you need to set.
+
+## Server variables
+
+The Express backend loads `.env` via `dotenv` on startup. It expects the following variables.
+
+<ParamField body="MONGO_URI" type="string" required>
+  MongoDB connection URI. The server connects one shared URI for both the auth and question databases.
+</ParamField>
+
+<ParamField body="JWT_SECRET" type="string" required>
+  Secret key used to sign and verify JSON Web Tokens for authentication.
+</ParamField>
+
+## Client variables
+
+The Vite frontend reads variables prefixed with `VITE_` at build time.
+
+<ParamField body="VITE_SERVER_URL" type="string">
+  Base URL of the backend API. If omitted, several components fall back to the hardcoded production URL `https://online-exam-portal-server.onrender.com`.
+</ParamField>
+
+<ParamField body="VITE_API_URL" type="string">
+  Used by CI builds (`staging`, `production`, `preview`) to inject the deployment-specific API endpoint.
+</ParamField>
+
+<ParamField body="VITE_APP_ENV" type="string">
+  Build-time environment label. Set to `staging`, `production`, or `preview` in CI.
+</ParamField>
+
+## CI secrets
+
+GitHub Actions workflows in all three repositories consume the following secrets. Only the secret names are listed here; configure their values in each repository's GitHub Settings.
+
+### Client repository (`online-exam-portal-client`)
+
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+- `STAGING_API_URL`
+- `PROD_API_URL`
+
+### Server repository (`online-exam-portal-server`)
+
+- `RENDER_API_KEY`
+- `RENDER_STAGING_SERVICE_ID`
+- `RENDER_PROD_SERVICE_ID`
+
+### Main orchestrator repository (`online-exam-portal-main`)
+
+- `MAIN_REPO_TOKEN`
+
+<Warning>
+  Never commit secrets or `.env` files to version control. The repository `.gitignore` should exclude them.
+</Warning>

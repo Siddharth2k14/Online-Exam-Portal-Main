@@ -1,0 +1,125 @@
+---
+title: "Authentication"
+description: "How ExamMaster handles signup, login, JWTs, role assignment, and route guards."
+---
+
+Authentication is stateless and token-based. The server hashes passwords with bcrypt, issues short-lived JWTs, and protects routes with middleware. The client stores the token in Redux and `localStorage`, and gates pages with a `PrivateRoute` component.
+
+## Signup flow
+
+<Steps>
+  <Step title="Collect credentials">
+    The client sends `name`, `email`, `password`, `confirmPassword`, and `phoneNumber` to `POST /api/auth/signup`.
+  </Step>
+  <Step title="Role assignment">
+    The server splits the email domain. If it equals `exam-portal.com`, the role is set to `admin`; otherwise it is `student`.
+  </Step>
+  <Step title="Password hashing">
+    `bcrypt.hash(password, 10)` produces the stored hash.
+  </Step>
+  <Step title="Token issuance">
+    A JWT is signed with `process.env.JWT_SECRET`, payload `{ userId, role }`, expiry `1h`.
+  </Step>
+  <Step title="Client storage">
+    The client stores `token`, `role`, and `user` in `localStorage` and updates the Redux `auth` slice.
+  </Step>
+</Steps>
+
+## Login flow
+
+<Steps>
+  <Step title="Credential check">
+    `POST /api/auth/login` receives `email` and `password`.
+  </Step>
+  <Step title="Role verification">
+    The server recomputes the expected role from the email domain and rejects the request if the stored role does not match. This prevents a student record from being used with an admin email, and vice versa.
+  </Step>
+  <Step title="Password comparison">
+    `bcrypt.compare(password, user.password)` validates the hash.
+  </Step>
+  <Step title="Token response">
+    A fresh JWT (same shape as signup) is returned along with `user`, `token`, and `role`.
+  </Step>
+</Steps>
+
+## Password rules
+
+The server enforces two rules in `validatePassword`:
+
+- Minimum length of 6 characters
+- At least one digit (`/[0-9]/`)
+
+## JWT middleware (`auth.middleware.js`)
+
+Every protected route uses `authMiddleware`. It:
+
+1. Reads the `Authorization` header and expects `Bearer <token>`.
+2. Verifies the token with `jwt.verify(token, process.env.JWT_SECRET)`.
+3. Looks up the user in `Auth` by `decoded.userId` and strips the password field.
+4. Attaches `req.user` and `req.userId` for downstream controllers.
+
+Error responses:
+
+| Condition | Status | Message |
+| --- | --- | --- |
+| Missing or malformed header | 401 | `No token, authorization denied` |
+| Invalid token | 401 | `Invalid token` |
+| Expired token | 401 | `Token expired` |
+| User not found | 401 | `Token is not valid` |
+
+## Exam access middleware
+
+Two middleware files guard exam-specific routes. Both query `ExamAssignment` to confirm the caller is assigned to the requested exam.
+
+### `checkExamAccess.middleware.js`
+
+Used by `AssignExam.route.js`. It looks up the assignment by `studentId` (from `req.user.id`) and `exam_name` (from `req.params.examTitle`). If none exists, it returns `403` with `Exam not assigned to this student`.
+
+### `examAccess.middleware.js`
+
+A second variant that queries by `examId` instead of `exam_name`. It is exported as a named export but is not mounted on any current route.
+
+## Client-side route guards
+
+### `PrivateRoute.jsx`
+
+The `PrivateRoute` component receives an allowed `roles` array and decides whether to render `<Outlet />` or redirect.
+
+1. Reads `token` and `role` from Redux (`state.auth`).
+2. Falls back to `localStorage.getItem('token')` and `localStorage.getItem('role')` if Redux state is empty after a refresh.
+3. Redirects to `/login` when no token exists.
+4. Redirects to `/` when the role is missing or not in the allowed list.
+
+Role strings are normalized with `.toLowerCase().trim()` before comparison.
+
+### Route map in `App.jsx`
+
+| Path | Allowed roles |
+| --- | --- |
+| `/admin/dashboard` | `admin` |
+| `/exam-creation` | `admin` |
+| `/manage-exams` | `admin` |
+| `/exam-creation/objective` | `admin` |
+| `/exam-creation/subjective` | `admin` |
+| `/view-exam/:examTitle` | `admin` |
+| `/student-list` | `admin` |
+| `/assign-exam` | `admin` |
+| `/student/dashboard` | `student` |
+| `/exams` | `student` |
+| `/results` | `student` |
+| `/start-exam/:examTitle` | `student` |
+| `/exam/:examTitle/review` | `student` |
+| `/change-password` | `admin`, `student` |
+| `/account-settings` | `admin`, `student` |
+
+## Redux auth slice (`authSlice.js`)
+
+The slice exposes two async thunks (`login`, `signup`) and two reducers (`logout`, `clearError`).
+
+- On `login.fulfilled` / `signup.fulfilled`, it writes `token`, `role`, and `user` into `localStorage` and into the slice state.
+- `logout` clears the slice and calls `localStorage.clear()`.
+- The base URL is built from `import.meta.env.VITE_SERVER_URL` plus `/api/auth`.
+
+## Change password
+
+`POST /api/auth/change-password` is protected by `authMiddleware`. It requires `currentPassword` and `newPassword`, verifies the current hash with `bcrypt.compare`, validates the new password with the same rules as signup, hashes the new password with `bcrypt.genSalt(10)`, and saves the user document.

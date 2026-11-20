@@ -1,0 +1,80 @@
+---
+title: "Introduction"
+description: "Overview of ExamMaster, an online exam portal built on the MERN stack with role-based access for Admins/Teachers and Students."
+---
+
+ExamMaster is a full-stack online exam portal built on the MERN stack (MongoDB, Express.js, React, Node.js). It provides role-based access control that lets Admins and Teachers create and manage exams, while Students can attempt assigned exams and track their progress.
+
+## What ExamMaster Does
+
+The platform supports both objective (multiple-choice) and subjective (free-text) exams. Admins organize exams by subject and type, assign them to specific students, and set model answers for automatic or assisted grading. Students see only the exams assigned to them, submit answers within the exam flow, and receive instant results for objective questions. Subjective answers are scored by a Python-based evaluator that compares student responses against model answers using semantic similarity, keyword coverage, and grammar analysis.
+
+## User Roles
+
+<CardGroup cols={2}>
+  <Card title="Admin / Teacher" icon="user-shield">
+    Create objective and subjective exams, organize by subject and type, assign exams to students, and review results.
+  </Card>
+
+  <Card title="Student" icon="graduation-cap">
+    Attempt assigned exams, view instant objective scores, and track complete exam history.
+  </Card>
+</CardGroup>
+
+Role assignment happens automatically at signup based on the email domain: addresses ending in `@exam-portal.com` become Admin/Teacher, while all other domains become Student.
+
+## Feature Summary
+
+| Capability | Admin / Teacher | Student |
+| --- | --- | --- |
+| Create objective exams | Yes | — |
+| Create subjective exams | Yes | — |
+| Organize exams by subject and type | Yes | — |
+| Assign exams to students | Yes | — |
+| Attempt assigned exams | — | Yes |
+| View instant objective scores | — | Yes |
+| Track exam history | — | Yes |
+
+## Technology Stack
+
+<CardGroup cols={2}>
+  <Card title="Frontend" icon="desktop">
+    React 19, Vite, Material UI, Redux Toolkit, React Router, Sentry, Vercel Analytics
+  </Card>
+
+  <Card title="Backend" icon="server">
+    Express 5, Mongoose, JWT auth, CORS
+  </Card>
+
+  <Card title="Database" icon="database">
+    MongoDB Atlas (two connections: questions DB and auth DB)
+  </Card>
+
+  <Card title="Evaluator" icon="code">
+    Python (sentence-transformers, spaCy, language-tool-python)
+  </Card>
+
+  <Card title="Hosting" icon="cloud">
+    Vercel (frontend), Render (backend)
+  </Card>
+
+  <Card title="CI/CD" icon="rotate">
+    GitHub Actions per repo; main repo has a Full Stack CI Orchestrator workflow
+  </Card>
+</CardGroup>
+
+## Quick Links
+
+<CardGroup cols={3}>
+  <Card title="Architecture" icon="sitemap" href="/architecture">
+    How the client, server, database, and evaluator fit together.
+  </Card>
+
+  <Card title="Folder Structure" icon="folder-tree" href="/folder-structure">
+    How the monorepo and submodules are organized.
+  </Card>
+
+  <Card title="Local Development" icon="wrench" href="/setup/local-development">
+    Clone, install, and run the stack locally.
+  </Card>
+</CardGroup>

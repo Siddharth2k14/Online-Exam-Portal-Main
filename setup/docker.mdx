@@ -1,0 +1,70 @@
+---
+title: "Docker"
+description: "How to run ExamMaster locally with Docker Compose, and what the current setup requires."
+---
+
+The main orchestrator repo includes a `docker-compose.yml` that defines two services: the client and the server. This page explains how the compose file works and what is missing for a fully containerized local setup.
+
+## Compose services
+
+```yaml
+version: '3.8'
+
+services:
+  client:
+    build: ./client/vite-project
+    ports:
+      - "5173:5173"
+    depends_on:
+      - server
+
+  server:
+    build: ./server
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./server/.env
+```
+
+- **server** builds from `./server` using the provided `Dockerfile`, exposes port `3000`, and loads environment variables from `./server/.env`.
+- **client** is configured to build from `./client/vite-project` and depends on the server service.
+
+## Server Dockerfile
+
+The server image is based on Node 18:
+
+```dockerfile
+FROM node:18
+
+WORKDIR /app
+
+COPY package*.json ./
+
+RUN npm install
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "start"]
+```
+
+## Client image status
+
+The client repository does **not** contain a `Dockerfile`. Because `docker-compose.yml` points `build: ./client/vite-project` to a directory without one, the compose client build will fail unless you add a `Dockerfile` there first.
+
+<Warning>
+  To run the full stack with Docker Compose, create a `Dockerfile` inside `client/vite-project` that installs dependencies, builds the Vite app, and serves the `dist/` folder (for example, with `nginx` or a static server). Until then, only the server service can be started successfully via Docker.
+</Warning>
+
+## Running the server via Docker
+
+If you only need the backend containerized, you can start it directly:
+
+```bash
+cd server
+docker build -t exammaster-server .
+docker run -p 3000:3000 --env-file .env exammaster-server
+```
+
+The client can still be run natively with `npm run dev` and pointed to `http://localhost:3000` via `VITE_SERVER_URL`.

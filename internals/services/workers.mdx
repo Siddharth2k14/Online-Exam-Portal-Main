@@ -1,0 +1,132 @@
+---
+title: "Workers & Offline Scoring"
+description: "The Python subjective-answer evaluator and how it fits into the system."
+---
+
+ExamMaster does not run background job workers inside the Express backend. There is no queue system (for example, Bull, Agenda, or cron) wired into the API. Instead, a standalone Python script performs advanced scoring for subjective answers offline by reading directly from MongoDB.
+
+## What the evaluator is
+
+`evaluator/marks_evaluator.py` is a command-line scoring utility. It uses NLP libraries to compare a student answer against a reference answer and produces a numeric score. It is **not imported or invoked by the Express server**. The backend's in-app subjective scoring (`submission.controller.js`) uses a simpler word-overlap algorithm. The Python evaluator exists as a separate, more sophisticated tool that can be run manually or integrated later.
+
+## Dependencies
+
+The script requires the following Python packages:
+
+- `sentence-transformers`
+- `spacy`
+- `language_tool_python`
+- `pymongo`
+
+Additionally, the spaCy English model must be installed:
+
+```bash
+python -m spacy download en_core_web_sm
+```
+
+## How it connects to MongoDB
+
+The evaluator opens its own MongoDB connection:
+
+```python
+from pymongo import MongoClient
+
+client = MongoClient("mongodb+srv://<user>:<password>@<cluster>/")
+db = client["test"]
+questions_collection = db["subjectivequestions"]
+```
+
+It reads reference answers from the `subjectivequestions` collection and writes scored results into a `student_answers` collection.
+
+<Warning>
+  Do not commit connection strings or credentials to version control. Use environment variables or a secrets manager when running the evaluator in production.
+</Warning>
+
+## Scoring algorithm
+
+The evaluator combines three signals into a final score:
+
+| Signal | Weight | How it is computed |
+| --- | --- | --- |
+| Semantic similarity | 60% | Cosine similarity of sentence embeddings (`all-MiniLM-L6-v2`) |
+| Keyword coverage | 30% | Intersection of lemmatized nouns, verbs, and adjectives between student and reference answers |
+| Grammar score | 10% | Error rate from `language_tool_python`; 1.0 if error rate is less than or equal to 2%, 0.7 if less than or equal to 5%, otherwise 0.4 |
+
+Formula:
+
+```text
+final_score = (0.6 * sim + 0.3 * key + 0.1 * gram) * max_marks
+```
+
+## Running the evaluator
+
+1. Install dependencies:
+
+```bash
+pip install sentence-transformers spacy language_tool_python pymongo
+python -m spacy download en_core_web_sm
+```
+
+2. Set your MongoDB URI in an environment variable or edit the script to read it securely.
+3. Run the script with a question ObjectId and a student answer:
+
+```bash
+python evaluator/marks_evaluator.py
+```
+
+The `__main__` block contains a hardcoded example:
+
+```python
+from bson import ObjectId
+qid = ObjectId("<question-id>")
+student_answer = "answer is 7"
+result = check_answer(qid, student_answer, student_id="STU101")
+print(result)
+```
+
+Replace the ObjectId and answer with real values from your database.
+
+## API functions
+
+### `semantic_similarity(student_ans, reference_ans)`
+
+Encodes both answers with `SentenceTransformer('all-MiniLM-L6-v2')` and returns the cosine similarity as a float between `0` and `1`.
+
+### `keyword_coverage(student_ans, reference_ans)`
+
+Tokenizes both answers with spaCy, extracts lemmatized `NOUN`, `VERB`, and `ADJ` tokens, and returns the proportion of reference keywords that appear in the student answer.
+
+### `grammar_score(student_ans)`
+
+Checks the answer with `language_tool_python.LanguageTool('en-US')`, counts errors, and maps the error rate to a discrete score (`1.0`, `0.7`, or `0.4`).
+
+### `evaluate_answer(student_ans, reference_ans, max_marks=10)`
+
+Runs all three scorers and returns the weighted, rounded final score.
+
+### `check_answer(question_id, student_ans, student_id="S1")`
+
+1. Fetches the reference answer and `marks` from MongoDB by `question_id`.
+2. Calls `evaluate_answer`.
+3. Inserts a document into `db["student_answers"]` with the question ID, student ID, raw answer, and computed score.
+4. Returns a dictionary containing the question text, reference answer, student answer, and score.
+
+## CI orchestrator relevance
+
+The main repository includes a `frontend.yaml` workflow called **Full Stack CI Orchestrator**. It is triggered manually (`workflow_dispatch`) or via `repository_dispatch` events (`client_updated`, `server_updated`). The workflow:
+
+1. Queries the latest GitHub Actions run for the client repo and verifies the conclusion is `success`.
+2. Queries the latest run for the server repo and verifies the conclusion is `success`.
+3. Prints a success notification if both pass.
+
+This orchestrator does not build or deploy the Python evaluator. If you want the evaluator to run automatically after submissions, you would need to add a new worker job or webhook trigger yourself.
+
+## Integration status
+
+- The Express API does **not** call the Python evaluator.
+- The frontend does **not** call the Python evaluator.
+- The evaluator is a standalone, offline script that must be run manually against MongoDB.
+- To integrate it, options include:
+  - Adding an HTTP endpoint in the Express server that shells out to the Python script.
+  - Converting the script into a microservice with a small Flask or FastAPI wrapper.
+  - Running it as a scheduled batch job that rescores pending subjective submissions.

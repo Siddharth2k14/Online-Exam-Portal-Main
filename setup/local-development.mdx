@@ -1,0 +1,112 @@
+---
+title: "Local Development"
+description: "How to set up ExamMaster for local development using the main orchestrator repo and its submodules."
+---
+
+This guide walks you through cloning the full ExamMaster stack and running the client and server locally.
+
+## Prerequisites
+
+- Node.js (the client CI uses Node 22 and Bun; the server CI uses Node 20)
+- npm or Bun
+- MongoDB Atlas cluster (or a local MongoDB instance)
+- Git
+
+## Clone the repository
+
+The main repo uses Git submodules for the client and server. Clone with submodules so both codebases are populated.
+
+```bash
+git clone --recurse-submodules https://github.com/Siddharth2k14/online-exam-portal-main.git
+cd online-exam-portal-main
+```
+
+If you already cloned without `--recurse-submodules`, initialize them afterward:
+
+```bash
+git submodule update --init --recursive
+```
+
+After cloning, the working tree contains:
+
+```text
+online-exam-portal-main/
+├── client/vite-project/   # React frontend (submodule)
+├── server/                # Express backend (submodule)
+├── docker-compose.yml
+└── README.md
+```
+
+## Start the backend
+
+<Steps>
+  <Step title="Install dependencies">
+    ```bash
+    cd server
+    npm install
+    ```
+  </Step>
+  <Step title="Create the environment file">
+    Create `server/.env` with at least:
+
+    ```bash
+    MONGO_URI="mongodb+srv://<user>:<password>@<cluster>/"
+    JWT_SECRET="<a-strong-random-string>"
+    ```
+  </Step>
+  <Step title="Run the server">
+    ```bash
+    npm start
+    ```
+
+    The server starts on port `3000`. You should see:
+
+    ```text
+    Server is running on port 3000
+    Connected to authDB successfully
+    Connected to questionDB successfully
+    ```
+  </Step>
+</Steps>
+
+## Start the frontend
+
+<Steps>
+  <Step title="Install dependencies">
+    ```bash
+    cd ../client/vite-project
+    npm install
+    ```
+  </Step>
+  <Step title="Point the client to the local server">
+    The client builds API URLs using `import.meta.env.VITE_SERVER_URL`. Create `client/vite-project/.env`:
+
+    ```bash
+    VITE_SERVER_URL="http://localhost:3000"
+    ```
+
+    <Note>
+      Several client components fall back to the hardcoded production URL `https://online-exam-portal-server.onrender.com` when `VITE_SERVER_URL` is not set. Setting the local variable ensures requests hit your local backend.
+    </Note>
+  </Step>
+  <Step title="Run the dev server">
+    ```bash
+    npm run dev
+    ```
+
+    Vite starts the client on port `5173`.
+  </Step>
+</Steps>
+
+## Open the portal
+
+Visit [http://localhost:5173](http://localhost:5173) in your browser.
+
+- Sign up with an email ending in `@exam-portal.com` to get the Admin/Teacher role.
+- Sign up with any other email to get the Student role.
+
+## What to check if things go wrong
+
+- The backend must be running before the client makes its first API call.
+- Verify `VITE_SERVER_URL` is set; without it, the client will try to reach the deployed Render backend instead of `localhost:3000`.
+- Confirm that `MONGO_URI` and `JWT_SECRET` are present in `server/.env`. The server exits if either is missing.

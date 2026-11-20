@@ -1,0 +1,143 @@
+---
+title: "Folder Structure"
+description: "Repository layout for the main orchestrator repo, the client submodule, and the server submodule."
+---
+
+The project is organized as a main orchestrator repository with two Git submodules: `client/vite-project` (the React frontend) and `server` (the Express backend). This layout keeps the frontend and backend in separate repos while allowing the main repo to coordinate Docker Compose and CI orchestration.
+
+## Main Orchestrator Repo
+
+```text
+online-exam-portal-main/
+├── .github/workflows/frontend.yaml   # Full Stack CI Orchestrator
+├── client/vite-project/              # Git submodule → online-exam-portal-client
+│   ├── .github/workflows/Client.yaml # Client CI/CD (test, build, deploy to Vercel)
+│   ├── public/
+│   ├── src/
+│   ├── index.html
+│   ├── vite.config.js
+│   ├── vercel.json
+│   └── package.json
+├── server/                           # Git submodule → online-exam-portal-server
+│   ├── .github/workflows/Server.yaml # Server CI/CD (test, audit, deploy to Render)
+│   ├── api/
+│   ├── Controllers/
+│   ├── DB/
+│   ├── Middleware/
+│   ├── Models/
+│   ├── Routes/
+│   ├── Dockerfile
+│   ├── vercel.json
+│   └── package.json
+├── evaluator/
+│   └── marks_evaluator.py            # Python subjective answer scorer
+├── docker-compose.yml                # Orchestrates client + server containers
+├── package.json                      # Minimal root deps (esbuild, react-circular-progressbar)
+└── README.md
+```
+
+## Client Submodule (`client/vite-project`)
+
+The client is a React 19 + Vite application. Key directories under `src/`:
+
+```text
+src/
+├── App.jsx                           # Root router with public, admin, and student routes
+├── main.jsx                          # Entry point: Redux provider, Sentry, Vercel Analytics
+├── index.css                         # Global styles
+├── components/
+│   ├── Authentication/               # Login, Signup, Forget Password
+│   ├── AdminPage/                    # Admin-specific UI components
+│   ├── StudentPage/                  # Student-specific UI components
+│   ├── Exam Creation/                # Exam creation flow
+│   ├── Objective Exam Creation/      # Objective question builder
+│   ├── Subjective Exam Creation/     # Subjective question builder
+│   ├── Manage Exams/                   # Exam list and detail views
+│   ├── ExamsPage/                      # Student exam listing
+│   ├── StartExam/                      # Exam taking interface
+│   ├── Result/                         # Results display
+│   ├── ViewExam/                       # Exam review component
+│   ├── Assignment Exam/                # Assign exam to students
+│   ├── Student List/                   # Admin view of students
+│   ├── Admin List/                     # Admin view of admins
+│   ├── Account Settings/               # Profile/settings UI
+│   ├── Change Password/                # Password change form
+│   ├── NavBar/                         # Top navigation
+│   ├── SideBar / SideNavBar/           # Side navigation variants
+│   ├── Theme Context/                  # Dark/light theme provider
+│   ├── Timer/                          # Exam countdown timer
+│   ├── Private Route/                  # Role-based route guard
+│   ├── Home Main/                      # Landing page sections
+│   ├── About Main/                     # About page sections
+│   ├── Contact Main/                   # Contact page sections
+│   ├── Home Footer/                    # Footer component
+│   ├── Hide Side Bar/                  # Sidebar toggle logic
+│   └── Download Btn/                   # Download button helper
+├── pages/
+│   ├── Home/
+│   ├── About/
+│   ├── Contact/
+│   ├── admin/
+│   └── student/
+├── redux/
+│   ├── store.js                        # Redux store (auth, questions, exams, subjectiveExam)
+│   ├── authSlice.js
+│   ├── questionSlice.js
+│   ├── examSlice.js
+│   └── subjectiveExamSlice.js
+└── helper components/
+    └── Loading.jsx                     # Suspense fallback loader
+```
+
+Additional top-level client files:
+
+- `vite.config.js` — Vite + React plugin, bundle visualizer, Sentry source maps, Vitest config
+- `vercel.json` — SPA rewrite rule (`/(.*)` → `/`)
+- `main.cjs` — Electron wrapper that loads the production Vercel URL
+- `eslint.config.js` — ESLint + Prettier setup
+
+## Server Submodule (`server`)
+
+The server is an Express 5 application with a modular structure:
+
+```text
+server/
+├── api/
+│   └── index.js                      # Express app entry point, route mounting, DB connections
+├── Controllers/
+│   ├── auth.controller.js            # Login, signup, password change/forgot, user listing
+│   ├── question.controller.js          # CRUD for objective and subjective questions
+│   ├── submission.controller.js        # Submit exams, compute results, review answers
+│   └── assignExam.controller.js        # Assign exams to students, list assigned exams
+├── DB/
+│   ├── Auth.DB.js                      # Mongoose connection for auth/user database
+│   └── Question.DB.js                  # Mongoose connection for questions/exams database
+├── Middleware/
+│   ├── auth.middleware.js              # JWT verification
+│   ├── examAccess.middleware.js        # General exam access checks
+│   └── checkExamAccess.middleware.js   # Specific exam assignment validation
+├── Models/
+│   ├── Auth.model.js                   # User schema (name, email, password, phone, role)
+│   ├── Exam.model.js                   # Exam metadata schema
+│   ├── ExamAssignment.model.js         # Student-to-exam assignment mapping
+│   ├── ObjectiveQuestion.model.js      # Objective question schema
+│   ├── SubjectiveQuestion.model.js     # Subjective question schema
+│   └── Submission.model.js             # Student submission schema
+├── Routes/
+│   ├── Auth.route.js                   # `/api/auth` routes
+│   ├── Question.route.js               # `/api/questions` routes
+│   ├── Submission.route.js             # `/api/submissions` routes
+│   └── AssignExam.route.js             # `/api/exams` routes
+├── Dockerfile                          # Node 18 image, exposes port 3000
+├── vercel.json                         # Vercel serverless config (`@vercel/node`)
+└── package.json                        # Express 5, Mongoose, JWT, bcrypt, cors, dotenv
+```
+
+## Evaluator
+
+```text
+evaluator/
+└── marks_evaluator.py                  # Python script for subjective scoring
+```
+
+This script uses `sentence-transformers` for semantic similarity, `spaCy` for keyword extraction, and `language-tool-python` for grammar scoring. It connects directly to MongoDB to read model answers and write back computed scores.
