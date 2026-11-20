@@ -1,0 +1,80 @@
+{
+    "$schema": "https://mintlify.com/docs.json",
+    "theme": "mint",
+    "name": "HabStreak Docs",
+    "colors": {
+        "primary": "#16A34A",
+        "light": "#4ADE80",
+        "dark": "#15803D"
+    },
+    "favicon": "/ExamPortalLogo.png",
+    "logo": "/ExamPortalLogo.png",
+    "navbar": {
+        "links": [
+            {
+                "label": "GitHub",
+                "href": "https://github.com/Siddharth2k14/Online-Exam-Portal-Main"
+            }
+        ],
+        "primary": {
+            "type": "button",
+            "label": "Dashboard",
+            "href": "https://online-exam-portal-client.vercel.app/"
+        }
+    },
+    "navigation": {
+        "tabs": [
+            {
+                "tab": "Guides",
+                "groups": [
+                    {
+                        "group": "Overview",
+                        "pages": [
+                            "introduction",
+                            "architecture",
+                            "folder-structure"
+                        ]
+                    },
+                    {
+                        "group": "Setup & Configuration",
+                        "pages": [
+                            "setup/local-development",
+                            "setup/environment-variables",
+                            "setup/docker"
+                        ]
+                    },
+                    {
+                        "group": "System Internals",
+                        "pages": [
+                            "internals/database-schema",
+                            "internals/authentication",
+                            {
+                                "group": "Services",
+                                "pages": [
+                                    "internals/services/frontend",
+                                    "internals/services/backend",
+                                    "internals/services/workers"
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "group": "Operations & Contributing",
+                        "pages": [
+                            "ops/testing",
+                            "ops/deployment",
+                            "ops/troubleshooting",
+                            "contributing"
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    "footer": {
+        "socials": {
+            "github": "https://github.com/your-username",
+            "x": "https://x.com/your-handle"
+        }
+    }
+}
